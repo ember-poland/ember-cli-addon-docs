@@ -83,7 +83,8 @@ module.exports = {
           chmod 600 deploy_key
           eval $(ssh-agent)
           ssh-add deploy_key
-          git config --global user.name Deploy
+          git config --global user.name Tomster
+          git config --global user.email tomster@emberjs.com
         `);
       },
 
