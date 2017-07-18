@@ -2,6 +2,7 @@
 'use strict';
 
 const path = require('path');
+const execa = require('execa');
 const MergeTrees = require('broccoli-merge-trees');
 const Funnel = require('broccoli-funnel');
 
@@ -56,6 +57,40 @@ module.exports = {
       project: this.project,
       destDir: 'docs'
     });
+  },
+
+  createDeployPlugin(options) {
+    return {
+      name: options.name,
+
+      configure(options) {
+        let parsed = require('npm-package-arg')(options.project.pkg.repository || '');
+        if (!parsed.hosted) {
+          throw new Error('Unable to parse `repository` from package.json; can\'t deploy.');
+        }
+
+        // Travis uses HTTPS for its remotes, which is no good for pushing via a deploy key, so we can't use
+        // ember-cli-deploy's default of just using the configured remote as the repo URL
+        options.git = options.git || {};
+        options.git.repo = options.git.repo || `git@github.com:${parsed.hosted.user}/${parsed.hosted.project}.git`;
+
+        // TODO handle `destDir` and `keep` options based on command args or something
+      },
+
+      willUpload() {
+        // TODO handle stuff like customizing where the deploy key lives
+        return execa.shell(`
+          chmod 600 deploy_key
+          eval $(ssh-agent)
+          ssh-add deploy_key
+          git config --global user.name Deploy
+        `);
+      },
+
+      didUpload() {
+        return execa('pkill', ['ssh-agent']);
+      }
+    };
   },
 
   _highlightJSTree() {
